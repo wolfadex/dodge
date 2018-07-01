@@ -1,6 +1,8 @@
 import './main.css';
 import { Main } from './Main.elm';
 import registerServiceWorker from './registerServiceWorker';
+// import playerImage from './player.png';
+// import fallingObjectImage from './falling_object.png';
 
 const localStorageKey = 'wolfadex-dodge-highScore';
 const app = Main.embed(document.getElementById('root'));

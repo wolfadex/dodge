@@ -448,14 +448,14 @@ buttonHover =
 
 playerObject : GameObject -> Styled.Html Msg
 playerObject { position, velocity } =
-    Styled.div [ (gameObjectStyle position.x position.y "/player.png")
+    Styled.div [ (gameObjectStyle position.x position.y "%PUBLIC_URL%/player.png")
                ]
                []
 
 
 enemyObject : GameObject -> Styled.Html Msg
 enemyObject { position, velocity } =
-    Styled.div [ (gameObjectStyle position.x position.y "/falling_object.png")
+    Styled.div [ (gameObjectStyle position.x position.y "%PUBLIC_URL%/falling_object.png")
                ]
                []
 
