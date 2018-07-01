@@ -3,15 +3,14 @@ port module Main exposing (main)
 
 import AnimationFrame as Anim
 import Css
-import Dom.LowLevel as Dom
 import Html
 import Html.Styled as Styled
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
 import Json.Decode as JsonD
+-- import Json.Decode.Pipeline as Pipe
 import Keyboard
 import Keyboard.Extra as Keys
-import Process
 import Random as Rand
 import Task
 import Time
@@ -39,6 +38,11 @@ type GameState
     | Paused
 
 
+type alias HighScore =
+    { player : String
+    , score : Int
+    }
+
 
 type alias Model =
     { player : GameObject
@@ -47,6 +51,8 @@ type alias Model =
     , gameState : GameState
     , score : Int
     , moveDirection : Float
+    , highScores : List HighScore
+    , playerName : String
     }
 
 
@@ -58,8 +64,12 @@ init =
       , gameState = NotYetStarted
       , score = 0
       , moveDirection = 0
+      , highScores = []
+      , playerName = ""
       }
-    , Task.perform SetInitialSeed Time.now
+    , Cmd.batch [ Task.perform SetInitialSeed Time.now
+                , getScores ()
+                ]
     )
 
 
@@ -120,6 +130,11 @@ cssBlack =
     Css.rgb 40 40 40
 
 
+cssFadedBlack : Css.Color
+cssFadedBlack =
+    Css.rgba 40 40 40 0.75
+
+
 cssWhite : Css.Color
 cssWhite =
     Css.rgb 250 250 250
@@ -139,7 +154,10 @@ type Msg
     | EndGame
     | PauseGame
     | LoseFocus String
-    | ElmLoseFocus
+    | GetHighScores
+    | ReceiveHighScores (List HighScore)
+    | SaveHighScore
+    | SetPlayerName String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -203,7 +221,7 @@ update msg model =
                                 , Cmd.none
                                 )
                             _ ->
-                                ( { model | gameState = newGameState }, Cmd.none)
+                                ( { model | gameState = newGameState }, Cmd.none )
                 _ ->
                     ( model, Cmd.none)
         StartGame ->
@@ -224,12 +242,16 @@ update msg model =
                     ( { model | gameState = Paused }, Cmd.none )
                 _ ->
                     ( model, Cmd.none )
-        ElmLoseFocus ->
-            case model.gameState of
-                Running ->
-                    ( { model | gameState = Paused }, Cmd.none )
-                _ ->
-                    ( model, Cmd.none )
+        GetHighScores ->
+            ( model, getScores () )
+        SaveHighScore ->
+            ( { model | gameState = NotYetStarted, playerName = "" }
+            , saveScore (model.playerName, model.score)
+            )
+        ReceiveHighScores scores ->
+            ( { model | highScores = scores }, Cmd.none )
+        SetPlayerName name ->
+            ( { model | playerName = name }, Cmd.none )
 
 
 checkCollision : GameObject -> GameObject -> Bool
@@ -274,29 +296,113 @@ multVector2 { x, y } mult =
 
 
 view : Model -> Styled.Html Msg
-view { player, fallingThings, score, gameState } =
+view { player, fallingThings, score, gameState, playerName, highScores } =
     Styled.div []
                ( [ playerObject player (Css.rgb 0 255 0)
-                 , scoreboard score
+                 , scoreboard score highScores
+                 , submitScoreView gameState playerName
                  , startButton gameState
                  ] ++
                  (List.map (\fallingThing -> enemyObject fallingThing (Css.rgb 255 0 0)) fallingThings)
                )
 
 
-scoreboard : Int -> Styled.Html Msg
-scoreboard score =
+submitScoreView : GameState -> String -> Styled.Html Msg
+submitScoreView gameState playerName =
+    case gameState of
+        GameOver ->
+            Styled.div [ Attr.css [ Css.position Css.absolute
+                                  , Css.top (Css.vh 10)
+                                  , Css.left (Css.vw 50)
+                                  , Css.transform (Css.translateX (Css.pct -50))
+                                  , Css.displayFlex
+                                  , Css.flexDirection Css.column
+                                  , Css.backgroundColor cssFadedBlack
+                                  , Css.padding2 (Css.vh 2) (Css.vw 2)
+                                  , Css.zIndex (Css.int 6)
+                                  ]
+                       ]
+                       [ Styled.input [ Attr.css [ Css.marginBottom (Css.vh 3)
+                                                 , Css.fontSize (Css.vw 3)
+                                                 , Css.textAlign Css.center
+                                                 ]
+                                      , Events.onInput SetPlayerName
+                                      ] []
+                       , Styled.button [ Attr.css [ Css.fontSize (Css.vw 3)
+                                                  , Css.cursor Css.pointer
+                                                  , Css.backgroundColor (Css.rgb 86 241 208)
+                                                  , Css.borderStyle Css.none
+                                                  , Css.color cssWhite
+                                                  , Css.padding2 (Css.vh 2) (Css.vw 3)
+                                                  , Css.cursor Css.pointer
+                                                  , Css.hover buttonHover
+                                                  , Css.focus buttonHover
+                                                  ]
+                                       , Events.onClick SaveHighScore
+                                       ]
+                                       [ Styled.text "Submit Score" ]
+                       ]
+        _ ->
+            Styled.text ""
+
+
+
+scoreboard : Int -> List HighScore -> Styled.Html Msg
+scoreboard score highScores =
     Styled.div [ Attr.css [ Css.fontSize (Css.vw 3)
-                          , Css.backgroundColor (Css.rgba 40 40 40 0.75)
+                          , Css.backgroundColor cssFadedBlack
                           , Css.color cssWhite
-                          , Css.textAlign Css.left
-                          , Css.padding2 (Css.vh 0.5) (Css.vw 1)
+                          , Css.displayFlex
+                          , Css.padding2 (Css.vh 0.5) (Css.vw 0)
                           , Css.zIndex (Css.int 5)
                           , Css.position Css.absolute
                           , Css.width (Css.vw 100)
                           ]
                ]
-               [ Styled.text <| "Score: " ++ (toString score) ]
+               [ Styled.span [ Attr.css [ Css.flex (Css.num 1)
+                                        , Css.textAlign Css.left
+                                        , Css.paddingLeft (Css.vw 1)
+                                        ]
+                             ]
+                             [ Styled.text <| "Score: " ++ (toString score) ]
+               , Styled.div [ Attr.css [ Css.marginRight (Css.vw 1)
+                                       , Css.cursor Css.pointer
+                                       ]
+                            , Attr.class "high-score-list-button"
+                            ]
+                            [ Styled.text "View Scores"
+                            , highScoreList highScores
+                            ]
+               ]
+
+
+highScoreList : List HighScore -> Styled.Html Msg
+highScoreList highScores =
+    Styled.ul [ Attr.css [ Css.position Css.absolute
+                         , Css.right (Css.vw 0)
+                         , Css.top (Css.vw 4.6)
+                         , Css.backgroundColor cssFadedBlack
+                         , Css.zIndex (Css.int 10)
+                         , Css.listStyle Css.none
+                         , Css.margin (Css.rem 0)
+                         , Css.padding (Css.rem 0)
+                         ]
+              ]
+              ( ( Styled.li [ Attr.css [ Css.padding3 (Css.vh 1) (Css.vw 1) (Css.vh 0)
+                                       , Css.textDecoration Css.underline
+                                       ]
+                            ]
+                            [ Styled.text "High Scores" ] )
+              :: List.map highScoreItem highScores
+              )
+
+
+highScoreItem : HighScore -> Styled.Html Msg
+highScoreItem { player, score } =
+    Styled.li [ Attr.css [ Css.padding2 (Css.vh 1) (Css.vw 1)
+                         ]
+              ]
+              [ Styled.text (player ++ ": " ++ (toString score)) ]
 
 
 startButton : GameState -> Styled.Html Msg
@@ -414,7 +520,33 @@ subscriptions model =
         , Time.every 1800 (\time -> Spawn time)
         , Anim.diffs (\deltaTime -> Tick (deltaTime / 1000))
         , windowBlur LoseFocus
+        , receiveScores updateHighScores
         ]
 
 
 port windowBlur : (String -> msg) -> Sub msg
+
+port saveScore : (String, Int) -> Cmd msg
+port getScores : () -> Cmd msg
+port receiveScores : (JsonD.Value -> msg) -> Sub msg
+
+
+updateHighScores : JsonD.Value -> Msg
+updateHighScores possibleScores =
+    case (JsonD.decodeValue decodeHighScores possibleScores) of
+        Ok scores ->
+            ReceiveHighScores scores
+        Err err ->
+            ReceiveHighScores []
+
+
+decodeHighScores : JsonD.Decoder (List HighScore)
+decodeHighScores =
+    JsonD.list decodeHighScore
+
+
+decodeHighScore : JsonD.Decoder HighScore
+decodeHighScore =
+    JsonD.map2 HighScore
+        (JsonD.field "player" JsonD.string)
+        (JsonD.field "score" JsonD.int)
