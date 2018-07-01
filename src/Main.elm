@@ -298,12 +298,12 @@ multVector2 { x, y } mult =
 view : Model -> Styled.Html Msg
 view { player, fallingThings, score, gameState, playerName, highScores } =
     Styled.div []
-               ( [ playerObject player (Css.rgb 0 255 0)
+               ( [ playerObject player
                  , scoreboard score highScores
                  , submitScoreView gameState playerName
                  , startButton gameState
                  ] ++
-                 (List.map (\fallingThing -> enemyObject fallingThing (Css.rgb 255 0 0)) fallingThings)
+                 (List.map (\fallingThing -> enemyObject fallingThing) fallingThings)
                )
 
 
@@ -446,26 +446,27 @@ buttonHover =
     ]
 
 
-playerObject : GameObject -> Css.Color -> Styled.Html Msg
-playerObject { position, velocity } background =
-    Styled.div [ (gameObjectStyle position.x position.y background)
+playerObject : GameObject -> Styled.Html Msg
+playerObject { position, velocity } =
+    Styled.div [ (gameObjectStyle position.x position.y "/player.png")
                ]
                []
 
 
-enemyObject : GameObject -> Css.Color -> Styled.Html Msg
-enemyObject { position, velocity } background =
-    Styled.div [ (gameObjectStyle position.x position.y background)
+enemyObject : GameObject -> Styled.Html Msg
+enemyObject { position, velocity } =
+    Styled.div [ (gameObjectStyle position.x position.y "/falling_object.png")
                ]
                []
 
 
-gameObjectStyle : Float -> Float -> Css.ColorValue compatible -> Styled.Attribute msg
-gameObjectStyle x y background =
+gameObjectStyle : Float -> Float -> String -> Styled.Attribute msg
+gameObjectStyle x y imageUrl =
     Attr.css [ Css.width (Css.vw unitSize)
              , Css.height (Css.vh unitSize)
-             , Css.backgroundColor background
-             , Css.outline3 (Css.rem 0.25) Css.solid cssBlack
+             , Css.backgroundImage (Css.url imageUrl)
+             , Css.backgroundRepeat Css.noRepeat
+             , Css.backgroundSize2 (Css.pct 100) (Css.pct 100)
              , Css.position Css.absolute
              , Css.bottom (Css.vh y)
              , Css.left (Css.vw x)
