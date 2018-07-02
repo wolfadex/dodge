@@ -8,7 +8,6 @@ import Html.Styled as Styled
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events as Events
 import Json.Decode as JsonD
--- import Json.Decode.Pipeline as Pipe
 import Keyboard
 import Keyboard.Extra as Keys
 import Random as Rand
@@ -173,7 +172,7 @@ update msg model =
             ( { model | randSeed = Rand.initialSeed (floor time) }
             , Cmd.none
             )
-        Spawn seed ->
+        Spawn _ ->
             case model.gameState of
                 Running ->
                     let

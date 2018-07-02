@@ -1,6 +1,6 @@
 {
     "version": "1.0.0",
-    "summary": "helpful summary of your project, less than 80 characters",
+    "summary": "A simple game of dodging",
     "repository": "https://github.com/wolfadex/dodge.git",
     "homepage": "https://wolfadex.github.io/dodge",
     "license": "BSD3",
@@ -11,7 +11,6 @@
     "dependencies": {
         "elm-lang/animation-frame": "1.0.1 <= v < 2.0.0",
         "elm-lang/core": "5.0.0 <= v < 6.0.0",
-        "elm-lang/dom": "1.1.1 <= v < 2.0.0",
         "elm-lang/html": "2.0.0 <= v < 3.0.0",
         "elm-lang/keyboard": "1.0.1 <= v < 2.0.0",
         "ohanhi/keyboard-extra": "3.0.4 <= v < 4.0.0",
